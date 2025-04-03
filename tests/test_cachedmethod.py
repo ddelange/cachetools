@@ -1,4 +1,5 @@
 import unittest
+import threading
 
 from cachetools import LRUCache, cachedmethod, keys
 
@@ -7,6 +8,7 @@ class Cached:
     def __init__(self, cache, count=0):
         self.cache = cache
         self.count = count
+        self.lock = threading.Lock()
 
     @cachedmethod(lambda self: self.cache)
     def get(self, value):
@@ -20,6 +22,13 @@ class Cached:
         self.count += 1
         return count
 
+    @cachedmethod(lambda self: self.cache, key=keys.typedmethodkey, info=True)
+    def get_info(self, value):
+        count = self.count
+        self.count += 1
+        return count
+
+
 
 class Locked:
     def __init__(self, cache):
@@ -29,6 +38,12 @@ class Locked:
 
     @cachedmethod(lambda self: self.cache, lock=lambda self: self)
     def get(self, value):
+        count = self.count
+        self.count += 1
+        return count
+
+    @cachedmethod(lambda self: self.cache, lock=lambda self: self, info=True)
+    def get_info(self, value):
         count = self.count
         self.count += 1
         return count

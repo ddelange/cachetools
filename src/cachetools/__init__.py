@@ -644,20 +644,38 @@ def cached(cache, *, key=keys.hashkey, lock=None, condition=None, info=False):
     return decorator
 
 
-def cachedmethod(cache, *, key=keys.methodkey, lock=None, condition=None):
+def cachedmethod(cache, *, key=keys.methodkey, lock=None, condition=None, info=False):
     """Decorator to wrap a class or instance method with a memoizing
     callable that saves results in a cache.
 
     """
 
     def decorator(method):
-        wrapper = _cachedmethod_wrapper(
-            method=method,
-            cache=cache,
-            key=key,
-            lock=lock,
-            condition=condition,
-        )
+        if info:
+            if hasattr(cache, "__instancecheck__") and hasattr(cache, "__call__"):
+                # This handles when cache is a function that returns a Cache instance
+                def make_info(hits, misses):
+                    # We can't directly access maxsize/currsize here since we'd need the instance
+                    # This will be evaluated per instance when cache_info() is called
+                    return _CacheInfo(hits, misses, None, None)
+
+            else:
+                # Simple case - no way to know cache details without the instance
+                def make_info(hits, misses):
+                    return _CacheInfo(hits, misses, None, None)
+
+            wrapper = _cachedmethod_wrapper(
+                method=method,
+                cache=cache,
+                key=key,
+                lock=lock,
+                condition=condition,
+                info=make_info,
+            )
+        else:
+            wrapper = _cachedmethod_wrapper(
+                method=method, cache=cache, key=key, lock=lock, condition=condition
+            )
 
         wrapper.cache = cache
         wrapper.cache_key = key
